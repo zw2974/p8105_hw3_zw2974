@@ -33,7 +33,7 @@ scale_fill_discrete = scale_fill_viridis_d
 data("brfss_smart2010")
 brfss = brfss_smart2010|> 
   janitor::clean_names() |> 
-  filter(topic == "Overall Health",
+  filter(topic == "Overall Health"
          ) |> 
   mutate(response = factor(response, 
                            levels = c("Excellent", "Very good", "Good", "Fair", "Poor"),
