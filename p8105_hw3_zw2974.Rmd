@@ -22,7 +22,7 @@ scale_colour_discrete = scale_color_viridis_d
 scale_fill_discrete = scale_fill_viridis_d
 ```
 
-### Problem2
+### Problem 2
 ## Data cleaning:
 * Format the data to use appropriate variable names;
 * Focus on the “Overall Health” topic
@@ -120,5 +120,100 @@ ny_plot = ggplot(ny_data, aes(x=response, y=data_value)) +
        y = "Value")
 
 print(ny_plot)
+```
+
+### Problem 3
+## Load, tidy, merge, and otherwise organize the data sets
+```{r}
+accel = read_csv("data/nhanes_accel.csv") |> 
+  janitor::clean_names() |> 
+  pivot_longer(min1: min1440, names_to = "min", values_to = "mims")
+
+covar = read_csv("data/nhanes_covar.csv", skip = 4) |> 
+  janitor::clean_names() |> 
+  filter(age >= 21) |> 
+  na.omit() |> 
+  mutate(
+    sex = case_match(
+      sex,
+      1 ~ "Male",
+      2 ~ "Female"
+      ),
+    education = case_match(
+      education,
+      1 ~ "Less than high school",
+      2 ~ "High school equivalent",
+      3 ~ "More than high school"
+    ),
+    education = factor(education,
+                        levels = c("Less than high school",
+                                   "High school equivalent",
+                                   "More than high school"))) 
+joint = inner_join(covar, accel, by = "seqn")
+```
+## Table
+```{r}
+gender_df = joint |> 
+  group_by(sex, education) |> 
+  summarize(num_people = n()) |> 
+  pivot_wider(
+    names_from = "education",
+    values_from = "num_people"
+  ) |> 
+  knitr::kable(caption="Number of Gender in Each Education Category")
+gender_df
+```
+
+In the table, it's clear to discern that `More than high school` contains most number of people. For female, more people are in the category `less than high school` while for male, more people are in the category `high school equivalent`.
+
+## Plot
+```{r}
+gender_plot = joint |> 
+  ggplot(aes(x = sex, y = age)) +
+  geom_boxplot() +
+  facet_wrap(~education) +
+  labs(
+    title = "Plot of Gender and Education",
+    x = "Sex",
+    y = "Age"
+  )
+gender_plot
+```
+
+From the plot above, we can clearly discover that for the category `Less than high school` and `More than high school` have similar distribution. Nevertheless, for the `High school equivalent`, the mean age is much higher for female(over 60 comparing to around 50 for male).
+
+## Accelerometer data
+```{r}
+accel_df = joint |> 
+  group_by(seqn, sex, age, education) |> 
+  summarize(
+    total_activity = sum(mims)
+  ) |> 
+  ggplot(
+    aes(x = age, y = total_activity, color = sex)
+  ) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~education)
+accel_df
+```
+```{r}
+# Aggregate data
+activity_by_time = joint %>% 
+  group_by(min, education, sex) %>% 
+  summarize(avg_activity = mean(mims, na.rm = TRUE))
+
+# Plot
+time_course_plot = ggplot(activity_by_time, aes(x = as.numeric(str_replace(min, "min", "")), y = avg_activity, color = sex)) +
+  geom_line() +
+  facet_wrap(~education, scales = "free_y") +
+  labs(title = "24-hour Activity Time Course by Education Level",
+       x = "Minute of the Day (from Midnight)",
+       y = "Average Activity (MIMS)") +
+  theme_minimal() +
+  scale_color_manual(values = c("Male" = "blue", "Female" = "red"))
+
+print(time_course_plot)
 
 ```
+
